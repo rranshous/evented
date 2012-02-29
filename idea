@@ -13,5 +13,9 @@ things we want:
                 sends it to consumer
 
  Event Proxy - Consumer / Producer which consumers events
-               and pushes them to other consumers
+               and pushes them to other consumers. This should
+               allow users to (via web?) setup new push urls
+               generic adapter which lets the proxy get events
+               from multiple sources
+
 
