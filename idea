@@ -1,0 +1,17 @@
+
+We want to build up a set of code for working
+with the evented api
+
+eventedapi.org
+
+things we want:
+ Web consumer - consumer which can accept events.
+                uses customizable handlers to take actions
+                when events come in
+
+ Web Producer - producer lib which takes event data and
+                sends it to consumer
+
+ Event Proxy - Consumer / Producer which consumers events
+               and pushes them to other consumers
+
