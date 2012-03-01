@@ -22,7 +22,7 @@ class Handler:
     echoing this event to other consumers, etc
     """
 
-    def __call__(self, event_data):
+    def __call__(self, event_data, **kwargs):
         print 'HANDLER: %s' % event_data
 
 class WebConsumer:
@@ -31,23 +31,23 @@ class WebConsumer:
     Passes event data to event handler
     """
 
-    event_handler = Handler
+    event_handler = Handler()
 
-    def POST(self):
+    def POST(self,**kwargs):
         try:
-            return self.parse_event(post=True)
+            return self.parse_event(post=True,**kwargs)
         except Exception, ex:
             # woops, server error
             web.internalerror()
 
-    def GET(self):
+    def GET(self,**kwargs):
         try:
-            return self.parse_event(get=True)
+            return self.parse_event(get=True,**kwargs)
         except Exception, ex:
             # woops, server error
             web.internalerror()
 
-    def parse_event(self,get=False,post=False):
+    def parse_event(self,get=False,post=False,**kwargs):
 
         # get event data (POST or GET)
         event_data = self._get_event_data(get=get,post=post)
@@ -67,7 +67,7 @@ class WebConsumer:
         # now we know we have valid event data
         # pass it off to our handler
         try:
-            self.event_handler()(event_data)
+            self.event_handler(event_data, **kwargs)
         except Exception, ex:
             # client error
             web.badrequest()

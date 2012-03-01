@@ -4,18 +4,29 @@ with the evented api
 
 eventedapi.org
 
+the goal is to create a set of libs / apps which
+facilitate creating my own local event network
+
 things we want:
  Web consumer - consumer which can accept events.
                 uses customizable handlers to take actions
-                when events come in
+                when events come in. 
+                Will use this to build service which sits
+                on public side of event network receiving
+                events from external producers.
 
  Web Producer - producer lib which takes event data and
-                sends it to consumer
+                sends it to consumer. Will use this lib to
+                build systems which broadcast our networks events.
 
- Event Proxy - Consumer / Producer which consumers events
-               and pushes them to other consumers. This should
-               allow users to (via web?) setup new push urls
-               generic adapter which lets the proxy get events
-               from multiple sources
+ Web Bridge - Web application which can consume events and buffer
+              them. clients are than able to use GET HTTP requests
+              to receive the bufferred events. This will allow
+              browsers to participate in the event system without
+              being able to be requested to directly. This way
+              browsers can be used as consumers.
 
+ Broadcaster - Application which handles consumer registration / tracking
+               as well as sending out events to consumers. Will have a
+               web UI for adding consumer urls.
 
