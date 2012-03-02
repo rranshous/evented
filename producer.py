@@ -13,6 +13,7 @@ class Producer:
         self.domain = domain
         self.method = method
         self.send_json = send_json
+        self.last_http_response = None
 
     def send_event(self, url=None, data={}, name=None, domain=None,
                          method="POST", send_json=False):
@@ -25,6 +26,9 @@ class Producer:
                              domain or self.domain,
                              method or self.method,
                              True if (send_json or self.send_json) else False)
+
+        # the result is the status code
+        self.last_http_response = r
         return r
 
     @staticmethod

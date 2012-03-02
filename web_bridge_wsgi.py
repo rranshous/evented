@@ -8,6 +8,12 @@ rc = redis.Redis('127.0.0.1')
 
 NS = 'web_bridge'
 
+# TODO: de-dup messages, there will be a huge amount
+#       of msg duplication between subscribers
+#       this could be done in redis, keeping a reference
+#       counter and than just putting in references to
+#       the full data in the queue
+
 def get_redis_key(queue_key):
     """
     returns the redis key for the given queue

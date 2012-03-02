@@ -26,7 +26,7 @@ things we want:
               being able to be requested to directly. This way
               browsers can be used as consumers.
 
- Broadcaster - Application which handles consumer registration / tracking
-               as well as sending out events to consumers. Will have a
-               web UI for adding consumer urls.
+ Revent Broadcaster - Application which uses revent to track events.
+                      Supports registration of consumer urls, retrying
+                      pushing events. Web API for managing consumers
 
