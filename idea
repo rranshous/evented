@@ -30,3 +30,5 @@ things we want:
                       Supports registration of consumer urls, retrying
                       pushing events. Web API for managing consumers
 
+ Entity / Endpoint Tracker - Keeps track of endities, their endpoints
+                             and the event subscriptions for endpoints
