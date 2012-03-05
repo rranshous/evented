@@ -14,6 +14,12 @@ class M(object):
         i.key = key
         return i
 
+    @classmethod
+    def get_all(cls):
+        key_pattern = '%s:%s:*'
+        keys = rc.keys(key_pattern)
+        return [cls.get(k) for k in keys]
+
 class Entity(M):
 
     # person's "name"
@@ -37,6 +43,9 @@ class Endpoint(M):
     # unique key (globally) for endpoint
     key = None
 
+    # the url this endpoint is at
+    url = None
+
     # list of events endpoint is subscribed
     # to
     enabled_events = []
@@ -50,9 +59,7 @@ class RedisEntity(Entity):
     NS = NS
 
     def __init__(self):
-        self._handle = None
         self.key = None
-        self._endpoints = []
 
     # setup our attributes which map to our hash's values
     # handle is the hash key we want to get the value from
@@ -74,10 +81,10 @@ class RedisEndpoint(Endpoint):
     NS = NS
 
     def __init__(self):
-        self._name = None
         self.key = None
 
     name = property(*redis_attr('name'))
+    url = property(*redis_attr('url')
     enabled_events = property(*redis_set('enabled_events'))
     entity = property(*redis_assoc('entity_key',RedisEntity))
 

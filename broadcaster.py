@@ -19,7 +19,8 @@ class SubscriptionHandler(Thread):
     fail_sleep_time = 60.0 * .5 # 30 seconds
 
     def __init__(self, is_stopping,
-                       subscription_key, consumer_url, domain):
+                       subscription_key, consumer_url,
+                       enabled_events, domain):
 
         # respect
         Thread.__init__(self)
@@ -34,6 +35,8 @@ class SubscriptionHandler(Thread):
         self.producer = Producer(self.consumer_url,
                                  self.domain)
 
+        # get the details of our subscription
+        self.enabled_events = enabled_events
 
     def run(self):
         """
@@ -89,12 +92,6 @@ class SubscriptionHandler(Thread):
                 self.cancel_retry(event_name, event_data)
                 self.fail_sleep()
 
-
-    def update_subscription_details(self):
-        """
-        updates our details from our shared storage
-        """
-        raise NotImplementedError
 
     def get_event(self):
         """
@@ -166,10 +163,7 @@ class ReventSubscriptionHandler(SubscriptionHandler):
 
     def __init__(self, *args):
 
-
-        # get the details of our subscription
-        self.watched_events = []
-        self.update_subscription_details()
+        SubscriptionHandler.__init__(self, *args)
 
         # redis client
         self.rc = None
@@ -188,13 +182,6 @@ class ReventSubscriptionHandler(SubscriptionHandler):
         self.rc = redis.Redis(REDIS_HOST)
         SubscriptionHandler.run(self)
 
-    def update_subscription_details(self):
-        """
-        hits redis to get our details
-        """
-        key = '%s:subscription:%s:watched_events' % (NS,self.subscription_key)
-        self.watched_events = rc.lrange(key,0,-1)
-
     def get_revent_filter_string(self):
         """
         builds a revent regex string for event names
@@ -202,7 +189,7 @@ class ReventSubscriptionHandler(SubscriptionHandler):
         """
 
         # the regex is going to be OR'd together event names
-        regex_string = '|'.join(self.watched_events)
+        regex_string = '|'.join(self.enabled_events)
         return regex_string
 
     # setup the filter string as a property
@@ -237,8 +224,8 @@ class ReventSubscriptionHandler(SubscriptionHandler):
     def remove_subscription_details(self):
 
         # remove our subscription details from redis
-        key = '%s:subscription:%s:watched_events' % (NS,self.subscription_key)
-        rc.del(key)
+        key = '%s:subscription:%s:enabled_events' % (NS,self.subscription_key)
+        rc.del(KEY)
 
     def broadcast_state_change(self):
         """
@@ -267,7 +254,7 @@ class ReventSubscriptionHandler(SubscriptionHandler):
 
 class Broadcaster:
     """
-    broadcasts revent events to consumers
+    broadcasts events to consumers
     """
 
     # we are going to use redis to track our subscribers
@@ -282,6 +269,7 @@ class Broadcaster:
     sleep_time = 2
 
     SubscriptionChangeListener = SubscriptionChangeListener
+    SubscriptionHandler = SubscriptionHandler
 
     def __init__(self, domain='defaultdomain'):
 
@@ -289,6 +277,9 @@ class Broadcaster:
         self.domain = domain
 
         # lookup of subscriber threads
+        # since there is one subscriber thread per endpoint
+        # the key is the endpoint key and the value is the
+        # subscriber handler
         self.subscriber_lookup = {}
 
         # flag so that we can co-ordinate threads stopping
@@ -327,6 +318,53 @@ class Broadcaster:
         shared data store
         """
 
+        # there is going to be a subscription for each endpoint
+        # start off by going through all the endpoints
+        for endpoint in self.get_endpoints():
+
+            handler = self.subscription_lookup.get(endpoint.key)
+
+            # if we don't have a handler, we need to start one
+            if not handler:
+                self.create_handler(endpoint)
+
+            # if we have a handler, check it's properties
+            # against what our endpoint's data says
+            elif handler.consumer_url != endpoint.url or \
+                 handler.enabled_events = endpoint.enabled_events:
+
+                # kill the handler off
+                self.destroy_handler(endpoint.key, handler)
+
+                # start it again
+                self.create_handler(endpoint)
+
+
+    def destroy_handler(self, key, handler):
+        """
+        stops the handler and removes it from the lookup
+        """
+        handler.is_stopping.set()
+        handler.join()
+        del self.subscription_lookup[key]
+        return True
+
+    def create_handler(self, endpoint):
+        """
+        creates a new handler for the endpoint
+        """
+        is_stopping = Event()
+
+        # create a handler for the subscription
+        handler = self.SubscriptionHandler(is_stopping,
+                                           endpoint.key,
+                                           endpoint.url,
+                                           endpoint.enabled_events,
+                                           self.domain)
+
+        # add it to the lookup
+        self.subscription_lookup[endpoint.key] = handler
+        return handler
 
     def run(self):
         """
@@ -340,9 +378,37 @@ class Broadcaster:
         self.sync_subscription_handlers()
 
         # now put the master thread in a loop
-        while not self.is_stopping.is_set():
-            sleep(self.sleep_time)
+        try:
+            while not self.is_stopping.is_set():
+                sleep(self.sleep_time)
+        except KeyboardInterrupt, ex:
+            pass
+        except Exception, ex:
+            print 'Top Exception: %s' % ex
 
+        finally:
+            # stop all our threads
+            self.stop_subscription_change_listener()
+            self.stop_subscription_handlers()
+
+
+    def stop_subscription_handlers(self):
+        # stop all our handlers
+        print 'stopping handlers'
+        for key, handler in self.subscription_lookup.iteritems():
+            try:
+                handler.is_stopping.set()
+                handler.join()
+            except Exception, ex:
+                log.exception('Stoppiong handler: %s' % handler.key)
+
+    def stop_subscription_change_listener(self):
+        self.subscription_change_listener.is_stopping.set()
+        # force kill if it's still listening (blocking socket)
+        try:
+            self.subscription_change_listener._Thread__stop()
+        except Exception, ex:
+            log.exception('Stopping subscription change listener')
 
 
 class SubscriptionChangeListener(Thread):
